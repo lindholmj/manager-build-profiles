@@ -1,0 +1,175 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          SUSE Manager client registration
+# Required-Start:    $local_fs $remote_fs $network $named
+# Should-Start:
+# Required-Stop:     $null
+# Should-Stop:
+# Default-Start:     3 5
+# Default-Stop:      0 1 2 6
+# Short-Description: SUSE Manager client registration
+# Description:       Registers a SUSE Manager client with a server if it is not registered already.
+### END INIT INFO
+
+# Shell functions sourced from /etc/rc.status:
+#      rc_check         check and set local and overall rc status
+#      rc_status        check and set local and overall rc status
+#      rc_status -v     be verbose in local rc status and clear it afterwards
+#      rc_status -v -r  ditto and clear both the local and overall rc status
+#      rc_status -s     display "skipped" and exit with status 3
+#      rc_status -u     display "unused" and exit with status 3
+#      rc_failed        set local and overall rc status to failed
+#      rc_failed <num>  set local and overall rc status to <num>
+#      rc_reset         clear both the local and overall rc status
+#      rc_exit          exit appropriate to overall rc status
+#      rc_active        checks whether a service is activated by symlinks
+. /etc/rc.status
+
+# Reset status of this service
+rc_reset
+
+BOOTSTRAP_SCRIPT=
+MANAGER_HOST=
+ACTIVATION_KEY=
+PROFILENAME=`hostname -f`
+
+DATA_DIR=/var/lib/suse_manager_client_registration
+BOOTSTRAP_SCRIPT_FILE=$DATA_DIR/bootstrap.sh
+BOOTSTRAP_SCRIPT_LOG=/var/log/suse_manager_bootstrap.log
+
+ORG_CA_CERT=RHN-ORG-TRUSTED-SSL-CERT
+
+if [ -f /etc/sysconfig/suse_manager_client_registration ]; then
+  . /etc/sysconfig/suse_manager_client_registration
+else
+  echo "Suse Manager is not configured"
+  rc_failed 6
+  rc_status -v
+  exit 6
+fi
+
+
+
+# Return values acc. to LSB for all commands but status:
+# 0       - success
+# 1       - generic or unspecified error
+# 2       - invalid or excess argument(s)
+# 3       - unimplemented feature (e.g. "reload")
+# 4       - user had insufficient privileges
+# 5       - program is not installed
+# 6       - program is not configured
+# 7       - program is not running
+# 8--199  - reserved (8--99 LSB, 100--149 distrib, 150--199 appl)
+#
+# Note that starting an already running service, stopping
+# or restarting a not-running service as well as the restart
+# with force-reload (in case signaling is not supported) are
+# considered a success.
+
+manager_register_default ()
+{
+    cd $DATA_DIR
+    rm -f client_config_update.py
+    rm -f client-config-overrides.txt
+    rm -f $ORG_CA_CERT
+  
+    curl http://$MANAGER_HOST/pub/$ORG_CA_CERT > $ORG_CA_CERT && cp $ORG_CA_CERT /usr/share/rhn/
+  
+    test -e "/etc/ssl/certs/${ORG_CA_CERT}.pem" || {
+      test -d "/etc/ssl/certs" || mkdir -p "/etc/ssl/certs"
+      ln -s "/usr/share/rhn/${ORG_CA_CERT}" "/etc/ssl/certs/${ORG_CA_CERT}.pem"
+    }
+    test -x /usr/bin/c_rehash && /usr/bin/c_rehash /etc/ssl/certs/ | grep "${ORG_CA_CERT}"
+
+
+    curl https://$MANAGER_HOST/pub/bootstrap/client_config_update.py > client_config_update.py
+    curl https://$MANAGER_HOST/pub/bootstrap/client-config-overrides.txt > client-config-overrides.txt
+    /usr/bin/python -u client_config_update.py /etc/sysconfig/rhn/up2date client-config-overrides.txt && \
+      /usr/sbin/rhnreg_ks --activationkey $ACTIVATION_KEY --profilename "$PROFILENAME"
+}
+
+
+case "$1" in
+    start)
+        if [ -f /etc/sysconfig/rhn/systemid ]; then
+          echo -n "Skipping SUSE Manager client registration (already registered) "
+
+          # Remember status and mark as skipped
+          rc_status -s
+        else
+          echo -n "Starting SUSE Manager client registration "
+          mkdir -p $DATA_DIR
+
+          if [ -n "$BOOTSTRAP_SCRIPT" ] ; then
+            # use downloaded bootstrap script
+            BOOTSTRAP_SCRIPT_URL="https://$MANAGER_HOST/pub/bootstrap/$BOOTSTRAP_SCRIPT"
+            curl -Sks "$BOOTSTRAP_SCRIPT_URL" > "$BOOTSTRAP_SCRIPT_FILE"
+            if [ $? -ne 0 ]; then
+              rc_failed
+              rc_status -v
+              echo "Can't download bootstrap script from $BOOTSTRAP_SCRIPT_URL."
+              rc_exit
+            fi
+
+            /bin/bash "$BOOTSTRAP_SCRIPT_FILE" > "$BOOTSTRAP_SCRIPT_LOG" 2>&1
+            if [ $? -ne 0 ]; then
+              rc_failed
+              rc_status -v
+              echo "Bootstrap script execution failed (see $BOOTSTRAP_SCRIPT_LOG for details)."
+              rc_exit
+            fi
+
+            rm "$BOOTSTRAP_SCRIPT_FILE"
+          elif [ -n "$ACTIVATION_KEY" ] ; then
+            # use default bootstrap method with via ACTIVATION_KEY
+            manager_register_default
+            
+          else
+            echo "Suse Manager is not configured"
+            rc_failed 6
+          fi
+
+          rc_status -v
+        fi
+        ;;
+    stop)
+        echo -n "Shutting down SUSE Manager client registration "
+
+        true # Nothing to do, we're always OK.
+
+        # Remember status and be verbose
+        rc_status -v
+        ;;
+    restart|reload)
+        ## Stop the service and regardless of whether it was
+        ## running or not, start it again.
+        $0 stop
+        $0 start
+
+        # Remember status and be quiet
+        rc_status
+        ;;
+    status)
+        echo -n "Checking for service SUSE Manager client registration "
+
+        # Return value is slightly different for the status command:
+        # 0 - service up and running
+        # 1 - service dead, but /var/run/  pid  file exists
+        # 2 - service dead, but /var/lock/ lock file exists
+        # 3 - service not running (unused)
+        # 4 - service status unknown :-(
+        # 5--199 reserved (5--99 LSB, 100--149 distro, 150--199 appl.)
+
+        true # We're always OK.
+
+        # NOTE: rc_status knows that we called this init script with
+        # "status" option and adapts its messages accordingly.
+        rc_status -v
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+rc_exit

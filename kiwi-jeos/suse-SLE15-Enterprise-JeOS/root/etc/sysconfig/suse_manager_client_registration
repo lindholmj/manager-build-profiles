@@ -1,0 +1,15 @@
+## Path:        System
+## Description: Automatic registration with SUSE Manager
+## Type:        string
+## Default:     ""
+MANAGER_HOST=manager.lindholms.us
+
+## Description: Registration via bootstrap script
+## Type:        string
+## Default:     ""
+BOOTSTRAP_SCRIPT=sles15sp2.sh
+
+## Description: Registration via activation key
+## Type:        string
+## Default:     ""
+ACTIVATION_KEY=1-sles15sp2-full

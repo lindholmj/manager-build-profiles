@@ -1,0 +1,17 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: fleet-agent
+  namespace: kube-system
+spec:
+  chart: "https://%{KUBERNETES_API}%/static/charts/fleet-agent-0.3.3.tgz"
+  targetNamespace: fleet-system
+  valuesContent: |-
+    labels:
+      region: "NY"
+    apiServerCA: ""
+    apiServerURL: https://demo.fremont.rancherlabs.com
+    clusterNamespace: retail-demo
+    systemRegistrationNamespace: fleet-clusters-system
+    token: eyJhbGciOiJSUzI1NiIsImtpZCI6InJTTWZqMnNnd2RNM3VINkNvNjI4MTJQQ0N1Z0o1Y0pDT0tIZHNBT3lYcncifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJyZXRhaWwtZGVtbyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJyZXRhaWwtZGVtby10b2tlbi1jN2ZmOTQwYy1kNDJjLTRlMWMtYjVmNS1iYmY5NDdjNWYxNjYtdG9rOWdwa3oiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoicmV0YWlsLWRlbW8tdG9rZW4tYzdmZjk0MGMtZDQyYy00ZTFjLWI1ZjUtYmJmOTQ3YzVmMTY2Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiMjM5ZGMxZTctZjE3ZS00Zjg3LTlkYWItZjYxYjExNmQwOWIxIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OnJldGFpbC1kZW1vOnJldGFpbC1kZW1vLXRva2VuLWM3ZmY5NDBjLWQ0MmMtNGUxYy1iNWY1LWJiZjk0N2M1ZjE2NiJ9.rUpVD0IKn-sCr4zJgIkpJNnJj-ANelZDySGHguiWBeVjeEr1BWjPXnEOP29-7lBBbZS0KkZnPoGNmLKXP4naI7-jktZrk6x3yahK5QVw0HnRElyLJLZkVWDrs98G_5ZlwRuPMdN5jFEImM7ipdk_yzo9ussq2rtHXTT1_oOouVKR1XrB4lro8eco0AYaxRB-cxXJ11ZxuLqBbHuxfhOnIAFApP7bJe9U1UsaJrLZkvZfrYRvv57Gly1q2GDpAgO7yUCsHmHF-QUmF5jTYU_W8eGWBoG4QLykxLtfE9GWKwKK89v9DXCiuw2Aq2XRFO4bGGNKmsuci-iIGxUXEsn96Q
+
